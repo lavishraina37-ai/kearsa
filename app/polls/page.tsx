@@ -10,7 +10,11 @@ export default function PollPage() {
 
   // LOAD POLLS
   const load = async () => {
-    const { data } = await supabase.from("questions").select("*");
+    const { data } = await supabase
+      .from("questions")
+      .select("*")
+      .order("created_at", { ascending: false });
+
     setQuestions(data || []);
   };
 
@@ -62,7 +66,9 @@ export default function PollPage() {
     ]);
 
     if (error) {
-      alert("Already voted!");
+      alert("You already voted!");
+    } else {
+      alert("Vote submitted!");
     }
   };
 
