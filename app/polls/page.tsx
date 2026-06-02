@@ -1,77 +1,63 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function PollPage() {
   const [polls, setPolls] = useState<any[]>([]);
   const [question, setQuestion] = useState("");
 
+  // LOAD POLLS
+  const loadPolls = async () => {
+    const { data } = await supabase.from("polls").select("*");
+    setPolls(data || []);
+  };
+
   useEffect(() => {
-    fetch("/api/polls")
-      .then((res) => res.json())
-      .then(setPolls);
+    loadPolls();
   }, []);
 
-  const addPoll = async () => {
-    await fetch("/api/polls", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question }),
-    });
+  // CREATE POLL
+  const createPoll = async () => {
+    if (!question) return;
 
+    await supabase.from("polls").insert([{ question }]);
     setQuestion("");
+    loadPolls();
+  };
 
-    const res = await fetch("/api/polls");
-    setPolls(await res.json());
+  // VOTE
+  const vote = async (pollId: string, option: string) => {
+    await supabase.from("votes").insert([
+      {
+        poll_id: pollId,
+        option,
+      },
+    ]);
   };
 
   return (
-    <div>
-      <h1>Polls</h1>
+    <div style={{ padding: 20 }}>
+      <h1>🗳️ Poll System</h1>
 
+      {/* CREATE POLL */}
       <input
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
         placeholder="Enter poll question"
       />
 
-      <button onClick={addPoll}>Create Poll</button>
+      <button onClick={createPoll}>Create Poll</button>
 
       <hr />
 
+      {/* SHOW POLLS */}
       {polls.map((p) => (
-        <div key={p.id}>
+        <div key={p.id} style={{ marginBottom: 20 }}>
           <h3>{p.question}</h3>
 
-          <button
-            onClick={() =>
-              fetch("/api/votes", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  poll_id: p.id,
-                  option: "yes",
-                }),
-              })
-            }
-          >
-            Vote Yes
-          </button>
-
-          <button
-            onClick={() =>
-              fetch("/api/votes", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  poll_id: p.id,
-                  option: "no",
-                }),
-              })
-            }
-          >
-            Vote No
-          </button>
+          <button onClick={() => vote(p.id, "yes")}>👍 Yes</button>
+          <button onClick={() => vote(p.id, "no")}>👎 No</button>
         </div>
       ))}
     </div>
