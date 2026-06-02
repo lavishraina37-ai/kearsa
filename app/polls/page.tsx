@@ -5,34 +5,55 @@ import { supabase } from "@/lib/supabase";
 
 export default function PollPage() {
   const [questions, setQuestions] = useState<any[]>([]);
+  const [optionsMap, setOptionsMap] = useState<Record<string, any[]>>({});
   const [text, setText] = useState("");
   const [options, setOptions] = useState<string[]>(["", ""]);
 
-  // LOAD POLLS
+  // ─────────────────────────────
+  // LOAD POLLS + OPTIONS
+  // ─────────────────────────────
   const load = async () => {
-    const { data } = await supabase
+    const { data: questionsData } = await supabase
       .from("questions")
       .select("*")
       .order("created_at", { ascending: false });
 
-    setQuestions(data || []);
+    const { data: optionsData } = await supabase
+      .from("poll_options")
+      .select("*");
+
+    setQuestions(questionsData || []);
+
+    // group options by question_id
+    const grouped: Record<string, any[]> = {};
+    (optionsData || []).forEach((opt) => {
+      if (!grouped[opt.question_id]) grouped[opt.question_id] = [];
+      grouped[opt.question_id].push(opt);
+    });
+
+    setOptionsMap(grouped);
   };
 
   useEffect(() => {
     load();
   }, []);
 
+  // ─────────────────────────────
   // CREATE POLL
+  // ─────────────────────────────
   const createPoll = async () => {
     if (!text.trim()) return;
 
-    const { data: question } = await supabase
+    const { data: question, error } = await supabase
       .from("questions")
       .insert([{ body: text }])
       .select()
       .single();
 
-    if (!question) return;
+    if (error || !question) {
+      console.log(error);
+      return;
+    }
 
     await supabase.from("poll_options").insert(
       options
@@ -48,7 +69,9 @@ export default function PollPage() {
     load();
   };
 
+  // ─────────────────────────────
   // VOTE
+  // ─────────────────────────────
   const vote = async (questionId: string, optionId: string) => {
     let voterId = localStorage.getItem("voter_id");
 
@@ -66,89 +89,76 @@ export default function PollPage() {
     ]);
 
     if (error) {
-      alert("You already voted!");
-    } else {
-      alert("Vote submitted!");
+      alert("You already voted on this poll!");
+      return;
     }
+
+    load();
   };
 
+  // ─────────────────────────────
+  // UI
+  // ─────────────────────────────
   return (
     <div style={{ padding: 20 }}>
       <h1>🗳️ Poll System</h1>
 
       {/* CREATE POLL */}
-      <input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Poll question"
-      />
-
-      <br />
-
-      {options.map((opt, i) => (
+      <div style={{ marginBottom: 20 }}>
         <input
-          key={i}
-          value={opt}
-          onChange={(e) => {
-            const copy = [...options];
-            copy[i] = e.target.value;
-            setOptions(copy);
-          }}
-          placeholder={`Option ${i + 1}`}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Enter poll question"
+          style={{ display: "block", marginBottom: 10 }}
         />
-      ))}
 
-      <button onClick={() => setOptions([...options, ""])}>
-        + Add Option
-      </button>
+        {options.map((opt, i) => (
+          <input
+            key={i}
+            value={opt}
+            onChange={(e) => {
+              const copy = [...options];
+              copy[i] = e.target.value;
+              setOptions(copy);
+            }}
+            placeholder={`Option ${i + 1}`}
+            style={{ display: "block", marginBottom: 5 }}
+          />
+        ))}
 
-      <button onClick={createPoll}>Create Poll</button>
+        <button onClick={() => setOptions([...options, ""])}>
+          + Add Option
+        </button>
+
+        <br />
+
+        <button onClick={createPoll} style={{ marginTop: 10 }}>
+          Create Poll
+        </button>
+      </div>
 
       <hr />
 
       {/* SHOW POLLS */}
       {questions.map((q) => (
-        <PollItem key={q.id} question={q} vote={vote} />
-      ))}
-    </div>
-  );
-}
+        <div key={q.id} style={{ marginBottom: 25 }}>
+          <h3>{q.body}</h3>
 
-// POLL ITEM
-function PollItem({
-  question,
-  vote,
-}: {
-  question: any;
-  vote: (q: string, o: string) => void;
-}) {
-  const [options, setOptions] = useState<any[]>([]);
-
-  useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase
-        .from("poll_options")
-        .select("*")
-        .eq("question_id", question.id);
-
-      setOptions(data || []);
-    };
-
-    load();
-  }, [question.id]);
-
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <h3>{question.body}</h3>
-
-      {options.map((opt) => (
-        <button
-          key={opt.id}
-          onClick={() => vote(question.id, opt.id)}
-          style={{ marginRight: 10 }}
-        >
-          {opt.option_text}
-        </button>
+          <div>
+            {(optionsMap[q.id] || []).map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => vote(q.id, opt.id)}
+                style={{
+                  marginRight: 10,
+                  marginTop: 5,
+                }}
+              >
+                {opt.option_text}
+              </button>
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   );
