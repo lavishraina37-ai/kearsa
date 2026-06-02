@@ -8,15 +8,9 @@ export default function PollPage() {
   const [text, setText] = useState("");
   const [options, setOptions] = useState<string[]>(["", ""]);
 
-  // LOAD QUESTIONS
+  // LOAD POLLS
   const load = async () => {
-    const { data, error } = await supabase
-      .from("questions")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) console.log(error);
-
+    const { data } = await supabase.from("questions").select("*");
     setQuestions(data || []);
   };
 
@@ -28,23 +22,20 @@ export default function PollPage() {
   const createPoll = async () => {
     if (!text.trim()) return;
 
-    const { data: question, error } = await supabase
+    const { data: question } = await supabase
       .from("questions")
       .insert([{ body: text }])
       .select()
       .single();
 
-    if (error || !question) {
-      console.log(error);
-      return;
-    }
+    if (!question) return;
 
     await supabase.from("poll_options").insert(
       options
-        .filter((opt) => opt.trim() !== "")
-        .map((opt) => ({
+        .filter((o) => o.trim() !== "")
+        .map((o) => ({
           question_id: question.id,
-          option_text: opt,
+          option_text: o,
         }))
     );
 
@@ -72,9 +63,6 @@ export default function PollPage() {
 
     if (error) {
       alert("Already voted!");
-      console.log(error);
-    } else {
-      alert("Vote submitted!");
     }
   };
 
@@ -86,7 +74,7 @@ export default function PollPage() {
       <input
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Enter poll question"
+        placeholder="Poll question"
       />
 
       <br />
@@ -108,4 +96,54 @@ export default function PollPage() {
         + Add Option
       </button>
 
-      <button onClick={
+      <button onClick={createPoll}>Create Poll</button>
+
+      <hr />
+
+      {/* SHOW POLLS */}
+      {questions.map((q) => (
+        <PollItem key={q.id} question={q} vote={vote} />
+      ))}
+    </div>
+  );
+}
+
+// POLL ITEM
+function PollItem({
+  question,
+  vote,
+}: {
+  question: any;
+  vote: (q: string, o: string) => void;
+}) {
+  const [options, setOptions] = useState<any[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from("poll_options")
+        .select("*")
+        .eq("question_id", question.id);
+
+      setOptions(data || []);
+    };
+
+    load();
+  }, [question.id]);
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <h3>{question.body}</h3>
+
+      {options.map((opt) => (
+        <button
+          key={opt.id}
+          onClick={() => vote(question.id, opt.id)}
+          style={{ marginRight: 10 }}
+        >
+          {opt.option_text}
+        </button>
+      ))}
+    </div>
+  );
+}
