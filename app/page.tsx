@@ -1,22 +1,18 @@
-import { supabase } from "./supabase";
+import { supabase } from "@/lib/supabase";
 
-export async function getQuestionsPage(page: number, pageSize: number) {
-  const from = page * pageSize;
-  const to = from + pageSize - 1;
+export const dynamic = "force-dynamic";
 
-  const { data, error, count } = await supabase
-    .from("questions")
-    .select("*", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(from, to);
+export default async function Page() {
+  const { data, error } = await supabase.from("questions").select("*");
 
   if (error) {
-    console.error(error);
-    return { questions: [], hasMore: false };
+    return <pre>Error: {JSON.stringify(error)}</pre>;
   }
 
-  return {
-    questions: data ?? [],
-    hasMore: count ? to + 1 < count : false,
-  };
+  return (
+    <div>
+      <h1>Debug Questions</h1>
+      <pre>{JSON.stringify(data, null, 2)}</pre>
+    </div>
+  );
 }
