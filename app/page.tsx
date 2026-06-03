@@ -1,5 +1,4 @@
 import QuestionsList from "./questions-list";
-import QuestionsList from "./questions-list";
 import { getQuestionsPage } from "@/lib/questions";
 
 export const dynamic = "force-dynamic";
