@@ -1,39 +1,19 @@
-import { supabase } from "@/lib/supabase";
+import QuestionsList from "./questions-list";
+import { getQuestionsPage } from "@/lib/questions";
 
+// Render on every request (don't cache/prerender) so new questions show up.
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 10;
+
+// Server component — runs only on the server, awaits the data, renders to HTML.
 export default async function Page() {
-  try {
-    const { data, error } = await supabase
-      .from("questions")
-      .select("*")
-      .order("created_at", { ascending: false });
+  const { questions, hasMore } = await getQuestionsPage(0, PAGE_SIZE);
 
-    if (error) {
-      return (
-        <div style={{ color: "red" }}>
-          <h2>Supabase Error</h2>
-          <pre>{JSON.stringify(error, null, 2)}</pre>
-        </div>
-      );
-    }
-
-    if (!data || data.length === 0) {
-      return <div>No questions found in database</div>;
-    }
-
-    return (
-      <div style={{ padding: "20px" }}>
-        <h1>Debug Questions</h1>
-        <pre>{JSON.stringify(data, null, 2)}</pre>
-      </div>
-    );
-  } catch (err: any) {
-    return (
-      <div style={{ color: "red" }}>
-        <h2>Server Crash Error</h2>
-        <pre>{err?.message || JSON.stringify(err, null, 2)}</pre>
-      </div>
-    );
-  }
+  return (
+    <main className="mx-auto max-w-2xl p-6">
+      <h1 className="mb-4 text-2xl font-medium">Live Q&amp;A</h1>
+      <QuestionsList initialQuestions={questions} initialHasMore={hasMore} />
+    </main>
+  );
 }
