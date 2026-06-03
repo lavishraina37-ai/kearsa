@@ -1,38 +1,88 @@
 import { supabase } from "@/lib/supabase";
 
+/**
+ * GET PAGINATED QUESTIONS WITH POLL OPTIONS + VOTE COUNT
+ */
 export async function getQuestionsPage(offset: number, limit: number) {
   const { data, error } = await supabase
     .from("questions")
-    .select("id, body, author, created_at, votes(count)")
+    .select(`
+      id,
+      body,
+      author,
+      created_at,
+      poll_options (
+        id,
+        option_text,
+        votes (id)
+      )
+    `)
     .order("created_at", { ascending: false })
-    .range(offset, offset + limit); // inclusive → asks for limit + 1 rows
+    .range(offset, offset + limit);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("getQuestionsPage error:", error);
+    throw new Error(error.message);
+  }
 
-  const rows = (data ?? []).map((q) => ({
+  const questions = (data ?? []).map((q: any) => ({
     id: q.id,
     body: q.body,
     author: q.author,
-    votes: q.votes?.[0]?.count ?? 0,
+    created_at: q.created_at,
+
+    options: (q.poll_options ?? []).map((opt: any) => ({
+      id: opt.id,
+      text: opt.option_text,
+
+      // count votes safely
+      votes: opt.votes ? opt.votes.length : 0,
+    })),
   }));
 
-  const hasMore = rows.length > limit; // got the extra row? there's a next page
-  return { questions: rows.slice(0, limit), hasMore };
+  const hasMore = (data?.length ?? 0) === limit;
+
+  return { questions, hasMore };
 }
 
-export async function searchQuestions(q: string, limit: number) {
+/**
+ * SEARCH QUESTIONS (WITH POLL OPTIONS)
+ */
+export async function searchQuestions(query: string, limit: number) {
   const { data, error } = await supabase
     .from("questions")
-    .select("id, body, author, created_at, votes(count)")
-    .textSearch("body", q, { type: "websearch", config: "english" })
+    .select(`
+      id,
+      body,
+      author,
+      created_at,
+      poll_options (
+        id,
+        option_text,
+        votes (id)
+      )
+    `)
+    .textSearch("body", query, {
+      type: "websearch",
+      config: "english",
+    })
     .limit(limit);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("searchQuestions error:", error);
+    throw new Error(error.message);
+  }
 
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    body: row.body,
-    author: row.author,
-    votes: row.votes?.[0]?.count ?? 0,
+  return (data ?? []).map((q: any) => ({
+    id: q.id,
+    body: q.body,
+    author: q.author,
+    created_at: q.created_at,
+
+    options: (q.poll_options ?? []).map((opt: any) => ({
+      id: opt.id,
+      text: opt.option_text,
+      votes: opt.votes ? opt.votes.length : 0,
+    })),
   }));
 }
