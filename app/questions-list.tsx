@@ -33,21 +33,35 @@ export default function QuestionsList({
   useEffect(() => setHydrated(true), []);
 
   // 🔍 SEARCH (debounced)
-  useEffect(() => {
-    const id = setTimeout(async () => {
+useEffect(() => {
+  const controller = new AbortController();
+
+  const id = setTimeout(async () => {
+    try {
       const url = query
         ? `/api/questions?q=${encodeURIComponent(query)}`
-        : `/api/questions`;
+        : `/api/questions?offset=0`;
 
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        signal: controller.signal,
+      });
+
+      if (!res.ok) return;
+
       const data = await res.json();
 
       setQuestions(data.questions);
       setHasMore(data.hasMore);
-    }, 300);
+    } catch (err) {
+      // ignore abort errors
+    }
+  }, 300);
 
-    return () => clearTimeout(id);
-  }, [query]);
+  return () => {
+    clearTimeout(id);
+    controller.abort();
+  };
+}, [query]);
 
   // ➕ ASK QUESTION
   async function submit() {
