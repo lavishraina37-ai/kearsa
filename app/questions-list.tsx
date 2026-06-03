@@ -88,6 +88,49 @@ export default function QuestionsList({
     setLoading(false);
   }
 
+  async function vote(questionId: string, optionId: string) {
+    try {
+      const res = await fetch("/api/vote", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          questionId,
+          optionId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || "Vote failed");
+        return;
+      }
+
+      setQuestions((prev) =>
+        prev.map((q) =>
+          q.id === questionId
+            ? {
+                ...q,
+                options: q.options.map((o) =>
+                  o.id === optionId
+                    ? {
+                        ...o,
+                        votes: data.votes,
+                      }
+                    : o
+                ),
+              }
+            : q
+        )
+      );
+    } catch (error) {
+      console.error(error);
+      alert("Vote failed");
+    }
+  }
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500">
@@ -138,7 +181,8 @@ export default function QuestionsList({
                 {q.options.map((opt) => (
                   <button
                     key={opt.id}
-                    className="w-full rounded border p-2 text-left"
+                    onClick={() => vote(q.id, opt.id)}
+                    className="w-full rounded border p-2 text-left hover:bg-gray-100"
                   >
                     {opt.text}
 
