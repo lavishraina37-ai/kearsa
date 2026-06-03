@@ -1,5 +1,17 @@
 import { supabase } from "@/lib/supabase";
 
+type VoteMap = Record<string, number>;
+
+function buildVoteMap(votes: any[]): VoteMap {
+  const map: VoteMap = {};
+
+  votes.forEach((v) => {
+    map[v.option_id] = (map[v.option_id] || 0) + 1;
+  });
+
+  return map;
+}
+
 export async function getQuestionsPage(offset: number, limit: number) {
   const { data, error } = await supabase
     .from("questions")
@@ -18,6 +30,16 @@ export async function getQuestionsPage(offset: number, limit: number) {
 
   if (error) throw new Error(error.message);
 
+  // 👉 fetch ALL votes for these questions
+  const questionIds = data?.map((q) => q.id) ?? [];
+
+  const { data: votes } = await supabase
+    .from("votes")
+    .select("option_id, question_id")
+    .in("question_id", questionIds);
+
+  const voteMap = buildVoteMap(votes ?? []);
+
   const questions =
     data?.map((q: any) => ({
       id: q.id,
@@ -27,7 +49,7 @@ export async function getQuestionsPage(offset: number, limit: number) {
         q.poll_options?.map((opt: any) => ({
           id: opt.id,
           text: opt.option_text,
-          votes: 0,
+          votes: voteMap[opt.id] ?? 0,
         })) ?? [],
     })) ?? [];
 
@@ -54,6 +76,15 @@ export async function searchQuestions(query: string, limit: number) {
 
   if (error) throw new Error(error.message);
 
+  const questionIds = data?.map((q) => q.id) ?? [];
+
+  const { data: votes } = await supabase
+    .from("votes")
+    .select("option_id, question_id")
+    .in("question_id", questionIds);
+
+  const voteMap = buildVoteMap(votes ?? []);
+
   return (
     data?.map((q: any) => ({
       id: q.id,
@@ -63,7 +94,7 @@ export async function searchQuestions(query: string, limit: number) {
         q.poll_options?.map((opt: any) => ({
           id: opt.id,
           text: opt.option_text,
-          votes: 0,
+          votes: voteMap[opt.id] ?? 0,
         })) ?? [],
     })) ?? []
   );
