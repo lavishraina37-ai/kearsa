@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getVoterId } from "@/lib/voter";
 
-type Option = {
+type PollOption = {
   id: string;
   text: string;
   votes: number;
@@ -13,8 +12,7 @@ type Question = {
   id: string;
   body: string;
   author: string | null;
-  votes: number;
-  options?: Option[];
+  options: PollOption[];
 };
 
 export default function QuestionsList({
@@ -31,14 +29,15 @@ export default function QuestionsList({
   const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => setHydrated(true), []);
-
-  // SEARCH
   useEffect(() => {
-    const id = setTimeout(async () => {
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
       const url = query
         ? `/api/questions?q=${encodeURIComponent(query)}`
-        : `/api/questions`;
+        : "/api/questions";
 
       const res = await fetch(url);
       const data = await res.json();
@@ -47,104 +46,43 @@ export default function QuestionsList({
       setHasMore(data.hasMore);
     }, 300);
 
-    return () => clearTimeout(id);
+    return () => clearTimeout(timer);
   }, [query]);
 
-  // CREATE QUESTION
   async function submit() {
     if (!draft.trim()) return;
 
     const res = await fetch("/api/questions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ body: draft }),
     });
 
     const created = await res.json();
 
-    setQuestions((qs) => [{ ...created, votes: 0, options: [] }, ...qs]);
+    setQuestions((prev) => [
+      {
+        ...created,
+        options: [],
+      },
+      ...prev,
+    ]);
+
     setDraft("");
-  }
-
-  // UPVOTE (question level still kept)
-  async function upvote(id: string) {
-    setQuestions((qs) =>
-      qs.map((q) =>
-        q.id === id ? { ...q, votes: q.votes + 1 } : q
-      )
-    );
-
-    const res = await fetch(`/api/questions/${id}/vote`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ voterId: getVoterId() }),
-    });
-
-    if (!res.ok) {
-      setQuestions((qs) =>
-        qs.map((q) =>
-          q.id === id ? { ...q, votes: q.votes - 1 } : q
-        )
-      );
-    }
-  }
-
-  // 🆕 OPTION VOTE (NEW POLL FEATURE)
-  async function voteOption(questionId: string, optionId: string) {
-    const voterId = getVoterId();
-
-    // optimistic update
-    setQuestions((qs) =>
-      qs.map((q) => {
-        if (q.id !== questionId) return q;
-
-        return {
-          ...q,
-          options: q.options?.map((opt) =>
-            opt.id === optionId
-              ? { ...opt, votes: opt.votes + 1 }
-              : opt
-          ),
-        };
-      })
-    );
-
-    const res = await fetch(`/api/polls/vote`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        questionId,
-        optionId,
-        voterId,
-      }),
-    });
-
-    if (!res.ok) {
-      // rollback
-      setQuestions((qs) =>
-        qs.map((q) => {
-          if (q.id !== questionId) return q;
-
-          return {
-            ...q,
-            options: q.options?.map((opt) =>
-              opt.id === optionId
-                ? { ...opt, votes: opt.votes - 1 }
-                : opt
-            ),
-          };
-        })
-      );
-    }
   }
 
   async function loadMore() {
     setLoading(true);
 
-    const res = await fetch(`/api/questions?offset=${questions.length}`);
+    const res = await fetch(
+      `/api/questions?offset=${questions.length}`
+    );
+
     const data = await res.json();
 
-    setQuestions((qs) => [...qs, ...data.questions]);
+    setQuestions((prev) => [...prev, ...data.questions]);
     setHasMore(data.hasMore);
 
     setLoading(false);
@@ -153,73 +91,79 @@ export default function QuestionsList({
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500">
-        {hydrated ? "Interactive ✓" : "Loading…"}
+        {hydrated ? "Interactive ✓" : "Loading..."}
       </p>
 
-      {/* CREATE */}
       <div className="flex gap-2">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Ask a question…"
+          placeholder="Ask a question..."
           className="flex-1 rounded-md border px-3 py-2"
         />
-        <button onClick={submit} className="border px-4 py-2">
+
+        <button
+          onClick={submit}
+          className="rounded-md border px-4 py-2"
+        >
           Ask
         </button>
       </div>
 
-      {/* SEARCH */}
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search questions…"
+        placeholder="Search questions..."
         className="w-full rounded-md border px-3 py-2"
       />
 
-      {/* QUESTIONS */}
       <ul className="space-y-4">
         {questions.map((q) => (
-          <li key={q.id} className="rounded-lg border p-4">
-            
-            {/* QUESTION HEADER */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => upvote(q.id)}
-                className="border px-3 py-1 font-mono"
-              >
-                ▲ {q.votes}
-              </button>
+          <li
+            key={q.id}
+            className="rounded-lg border p-4"
+          >
+            <h3 className="mb-3 text-lg font-medium">
+              {q.body}
+            </h3>
 
-              <span className="font-medium">{q.body}</span>
-            </div>
+            {q.author && (
+              <p className="mb-3 text-sm text-gray-500">
+                by {q.author}
+              </p>
+            )}
 
-            {/* 🆕 POLL OPTIONS */}
-            {q.options && q.options.length > 0 && (
-              <div className="mt-3 space-y-2">
+            {q.options?.length > 0 ? (
+              <div className="space-y-2">
                 {q.options.map((opt) => (
                   <button
                     key={opt.id}
-                    onClick={() => voteOption(q.id, opt.id)}
-                    className="w-full text-left border px-3 py-2 rounded hover:bg-gray-50"
+                    className="w-full rounded border p-2 text-left"
                   >
-                    {opt.text} ({opt.votes})
+                    {opt.text}
+
+                    <span className="float-right">
+                      {opt.votes} votes
+                    </span>
                   </button>
                 ))}
               </div>
+            ) : (
+              <p className="text-sm text-gray-500">
+                No poll options
+              </p>
             )}
           </li>
         ))}
       </ul>
 
-      {/* LOAD MORE */}
       {hasMore && (
         <button
           onClick={loadMore}
           disabled={loading}
-          className="border px-4 py-2 disabled:opacity-50"
+          className="rounded-md border px-4 py-2 disabled:opacity-50"
         >
-          {loading ? "Loading…" : "Load more"}
+          {loading ? "Loading..." : "Load More"}
         </button>
       )}
     </div>
