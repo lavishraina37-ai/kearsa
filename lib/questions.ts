@@ -23,7 +23,6 @@ export async function getQuestionsPage(offset: number, limit: number) {
       id: q.id,
       body: q.body,
       author: q.author,
-      created_at: q.created_at,
       options:
         q.poll_options?.map((opt: any) => ({
           id: opt.id,
@@ -36,4 +35,36 @@ export async function getQuestionsPage(offset: number, limit: number) {
     questions,
     hasMore: questions.length === limit,
   };
+}
+
+export async function searchQuestions(query: string, limit: number) {
+  const { data, error } = await supabase
+    .from("questions")
+    .select(`
+      id,
+      body,
+      author,
+      poll_options (
+        id,
+        option_text
+      )
+    `)
+    .ilike("body", `%${query}%`)
+    .limit(limit);
+
+  if (error) throw new Error(error.message);
+
+  return (
+    data?.map((q: any) => ({
+      id: q.id,
+      body: q.body,
+      author: q.author,
+      options:
+        q.poll_options?.map((opt: any) => ({
+          id: opt.id,
+          text: opt.option_text,
+          votes: 0,
+        })) ?? [],
+    })) ?? []
+  );
 }
