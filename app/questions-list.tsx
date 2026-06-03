@@ -27,23 +27,34 @@ export default function QuestionsList({
   useEffect(() => setHydrated(true), []);
 
   // =========================
-  // SEARCH (debounced + reset)
+  // FUZZY QUESTION-LIKE SEARCH
   // =========================
-  useEffect(() => {
-    const id = setTimeout(async () => {
-      const url = query
-        ? `/api/questions?q=${encodeURIComponent(query)}`
-        : `/api/questions`;
+  function normalize(str: string) {
+    return str.toLowerCase().replace(/\s+/g, "");
+  }
 
-      const res = await fetch(url);
-      const data = await res.json();
+  // letter-by-letter matching (loose search)
+  function isQuestionMatch(text: string, query: string) {
+    if (!query.trim()) return true;
 
-      setQuestions(data.questions);
-      setHasMore(data.hasMore);
-    }, 300);
+    text = normalize(text);
+    query = normalize(query);
 
-    return () => clearTimeout(id);
-  }, [query]);
+    let j = 0;
+
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === query[j]) {
+        j++;
+      }
+      if (j === query.length) return true;
+    }
+
+    return false;
+  }
+
+  const filteredQuestions = questions.filter((q) =>
+    isQuestionMatch(q.body, query)
+  );
 
   // =========================
   // SUBMIT QUESTION
@@ -59,16 +70,12 @@ export default function QuestionsList({
 
     const created = await res.json();
 
-    setQuestions((prev) => [
-      { ...created, votes: 0 },
-      ...prev,
-    ]);
-
+    setQuestions((prev) => [{ ...created, votes: 0 }, ...prev]);
     setDraft("");
   }
 
   // =========================
-  // UPVOTE (optimistic update)
+  // UPVOTE (optimistic)
   // =========================
   async function upvote(id: string) {
     setQuestions((qs) =>
@@ -83,7 +90,6 @@ export default function QuestionsList({
       body: JSON.stringify({ voterId: getVoterId() }),
     });
 
-    // rollback if failed
     if (!res.ok) {
       setQuestions((qs) =>
         qs.map((q) =>
@@ -94,15 +100,13 @@ export default function QuestionsList({
   }
 
   // =========================
-  // LOAD MORE (FIXED WITH QUERY)
+  // LOAD MORE (unchanged)
   // =========================
   async function loadMore() {
     setLoading(true);
 
     const res = await fetch(
-      `/api/questions?offset=${questions.length}${
-        query ? `&q=${encodeURIComponent(query)}` : ""
-      }`
+      `/api/questions?offset=${questions.length}`
     );
 
     const data = await res.json();
@@ -135,7 +139,7 @@ export default function QuestionsList({
         </button>
       </div>
 
-      {/* SEARCH */}
+      {/* SEARCH BOX */}
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -143,9 +147,9 @@ export default function QuestionsList({
         className="w-full rounded-md border px-3 py-2"
       />
 
-      {/* LIST */}
+      {/* LIST (FUZZY SEARCH APPLIED) */}
       <ul className="space-y-3">
-        {questions.map((q) => (
+        {filteredQuestions.map((q) => (
           <li
             key={q.id}
             className="flex items-center gap-3 rounded-lg border p-3"
@@ -156,6 +160,7 @@ export default function QuestionsList({
             >
               ▲ {q.votes}
             </button>
+
             <span>{q.body}</span>
           </li>
         ))}
