@@ -1,30 +1,31 @@
-import { NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
+import { getQuestionsPage, searchQuestions } from "@/lib/questions";
+
+const PAGE_SIZE = 10;
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const q = searchParams.get("q");
+  const q = searchParams.get("q")?.trim();
 
-  // 🔴 IMPORTANT: if q exists, filter results
   if (q) {
-    const filtered = await db.questions.findMany({
-      where: {
-        body: {
-          contains: q,
-          mode: "insensitive",
-        },
-      },
-    });
-
-    return NextResponse.json({
-      questions: filtered,
-      hasMore: false,
-    });
+    const questions = await searchQuestions(q, PAGE_SIZE);
+    return Response.json({ questions, hasMore: false });
   }
 
-  const all = await db.questions.findMany();
+  const offset = Number(searchParams.get("offset") ?? 0);
+  const { questions, hasMore } = await getQuestionsPage(offset, PAGE_SIZE);
+  return Response.json({ questions, hasMore });
+}
 
-  return NextResponse.json({
-    questions: all,
-    hasMore: false,
-  });
+export async function POST(req: Request) {
+  const { body, author } = await req.json();
+
+  const { data, error } = await supabase
+    .from("questions")
+    .insert({ body, author })
+    .select()
+    .single();
+
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  return Response.json(data);
 }
