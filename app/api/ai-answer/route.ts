@@ -2,13 +2,15 @@ import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({});
 
-export async function GET() {
+export async function POST(req: Request) {
+  const { question } = await req.json();
+
   const res = await ai.models.generateContent({
     model: "gemini-2.5-flash",
-    contents: "Say 'it works' and nothing else.",
+    contents: `Answer this question clearly and simply:\n\n${question}`,
   });
 
   return Response.json({
-    reply: res.text,
+    answer: res.text,
   });
 }

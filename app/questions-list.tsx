@@ -24,16 +24,19 @@ export default function QuestionsList({
   const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
+  // AI STATES
+  const [aiAnswers, setAiAnswers] = useState<Record<string, string>>({});
+  const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
+
   useEffect(() => setHydrated(true), []);
 
   // =========================
-  // FUZZY QUESTION-LIKE SEARCH
+  // FUZZY SEARCH
   // =========================
   function normalize(str: string) {
     return str.toLowerCase().replace(/\s+/g, "");
   }
 
-  // letter-by-letter matching (loose search)
   function isQuestionMatch(text: string, query: string) {
     if (!query.trim()) return true;
 
@@ -75,7 +78,7 @@ export default function QuestionsList({
   }
 
   // =========================
-  // UPVOTE (optimistic)
+  // UPVOTE
   // =========================
   async function upvote(id: string) {
     setQuestions((qs) =>
@@ -100,7 +103,7 @@ export default function QuestionsList({
   }
 
   // =========================
-  // LOAD MORE (unchanged)
+  // LOAD MORE
   // =========================
   async function loadMore() {
     setLoading(true);
@@ -115,6 +118,32 @@ export default function QuestionsList({
     setHasMore(data.hasMore);
 
     setLoading(false);
+  }
+
+  // =========================
+  // AI ANSWER
+  // =========================
+  async function getAIAnswer(questionId: string, questionText: string) {
+    setAiLoading((prev) => ({ ...prev, [questionId]: true }));
+
+    try {
+      const res = await fetch("/api/ai-answer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: questionText }),
+      });
+
+      const data = await res.json();
+
+      setAiAnswers((prev) => ({
+        ...prev,
+        [questionId]: data.answer,
+      }));
+    } catch (err) {
+      console.error(err);
+    }
+
+    setAiLoading((prev) => ({ ...prev, [questionId]: false }));
   }
 
   return (
@@ -139,7 +168,7 @@ export default function QuestionsList({
         </button>
       </div>
 
-      {/* SEARCH BOX */}
+      {/* SEARCH */}
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -147,21 +176,39 @@ export default function QuestionsList({
         className="w-full rounded-md border px-3 py-2"
       />
 
-      {/* LIST (FUZZY SEARCH APPLIED) */}
+      {/* LIST */}
       <ul className="space-y-3">
         {filteredQuestions.map((q) => (
           <li
             key={q.id}
-            className="flex items-center gap-3 rounded-lg border p-3"
+            className="flex flex-col gap-2 rounded-lg border p-3"
           >
+            {/* TOP ROW */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => upvote(q.id)}
+                className="rounded-md border px-3 py-1 font-mono"
+              >
+                ▲ {q.votes}
+              </button>
+
+              <span>{q.body}</span>
+            </div>
+
+            {/* AI BUTTON */}
             <button
-              onClick={() => upvote(q.id)}
-              className="rounded-md border px-3 py-1 font-mono"
+              onClick={() => getAIAnswer(q.id, q.body)}
+              className="w-fit rounded-md border px-3 py-1 text-sm"
             >
-              ▲ {q.votes}
+              {aiLoading[q.id] ? "Thinking..." : "🤖 AI Answer"}
             </button>
 
-            <span>{q.body}</span>
+            {/* AI RESPONSE */}
+            {aiAnswers[q.id] && (
+              <div className="rounded-md bg-gray-100 p-2 text-sm">
+                {aiAnswers[q.id]}
+              </div>
+            )}
           </li>
         ))}
       </ul>
