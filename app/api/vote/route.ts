@@ -1,7 +1,11 @@
 import { supabase } from "@/lib/supabase";
 
-export async function POST(req: Request) {
-  const { questionId, voterId } = await req.json();
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: questionId } = await params;
+  const { voterId } = await req.json();
 
   const { error } = await supabase
     .from("question_votes")
