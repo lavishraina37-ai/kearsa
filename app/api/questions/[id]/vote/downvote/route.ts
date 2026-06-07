@@ -13,7 +13,7 @@ export async function POST(
       {
         question_id: questionId,
         voter_id: voterId,
-        vote_type: 1,
+        vote_type: -1,
       },
       {
         onConflict: "question_id,voter_id",

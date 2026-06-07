@@ -86,7 +86,22 @@ export default function QuestionsList({
         q.id === id ? { ...q, votes: q.votes + 1 } : q
       )
     );
-async function downvote(id: string) {
+
+    const res = await fetch(`/api/questions/${id}/vote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ voterId: getVoterId() }),
+    });
+
+    if (!res.ok) {
+      setQuestions((qs) =>
+        qs.map((q) =>
+          q.id === id ? { ...q, votes: q.votes - 1 } : q
+        )
+      );
+    }
+  }
+  async function downvote(id: string) {
   setQuestions((qs) =>
     qs.map((q) =>
       q.id === id
@@ -118,20 +133,6 @@ async function downvote(id: string) {
     );
   }
 }
-    const res = await fetch(`/api/questions/${id}/vote`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ voterId: getVoterId() }),
-    });
-
-    if (!res.ok) {
-      setQuestions((qs) =>
-        qs.map((q) =>
-          q.id === id ? { ...q, votes: q.votes - 1 } : q
-        )
-      );
-    }
-  }
 
   // =========================
   // LOAD MORE
@@ -208,72 +209,54 @@ async function downvote(id: string) {
       />
 
       {/* LIST */}
-<ul className="space-y-4">
-  {filteredQuestions.map((q) => (
-    <li
-      key={q.id}
-      className="rounded-xl border bg-white p-4 shadow-sm transition hover:shadow-md"
+      <ul className="space-y-3">
+        {filteredQuestions.map((q) => (
+          <li
+            key={q.id}
+            className="flex flex-col gap-2 rounded-lg border p-3"
+          >
+            {/* TOP ROW */}
+           <div className="flex items-center gap-3">
+  <div className="flex flex-col items-center rounded-md border">
+    <button
+      onClick={() => upvote(q.id)}
+      className="px-3 py-1 hover:bg-gray-100"
     >
-      <div className="flex items-start justify-between">
-        <div className="flex gap-4">
-          {/* Vote Box */}
-          <div className="flex flex-col items-center rounded-lg border">
-            <button
-              onClick={() => upvote(q.id)}
-              className="px-4 py-2 text-lg hover:bg-gray-100"
-            >
-              ▲
-            </button>
+      ▲
+    </button>
 
-            <span className="px-4 py-1 font-semibold">
-              {q.votes}
-            </span>
+    <span className="px-3 font-semibold">
+      {q.votes}
+    </span>
 
-            <button
-              className="px-4 py-2 text-lg text-gray-400"
-              disabled
-            >
-              ▼
-            </button>
-          </div>
+    <button
+      onClick={() => downvote(q.id)}
+      className="px-3 py-1 hover:bg-gray-100"
+    >
+      ▼
+    </button>
+  </div>
 
-          {/* Question Content */}
-          <div className="flex-1">
-            <h3 className="text-lg font-medium">
-              {q.body}
-            </h3>
+  <span>{q.body}</span>
+</div>
 
-            {q.author && (
-              <p className="mt-1 text-sm text-gray-500">
-                by {q.author}
-              </p>
-            )}
-
+            {/* AI BUTTON */}
             <button
               onClick={() => getAIAnswer(q.id, q.body)}
-              className="mt-4 rounded-md border px-4 py-2 text-sm hover:bg-gray-50"
+              className="w-fit rounded-md border px-3 py-1 text-sm"
             >
-              {aiLoading[q.id]
-                ? "Thinking..."
-                : "🤖 AI Answer"}
+              {aiLoading[q.id] ? "Thinking..." : "🤖 AI Answer"}
             </button>
 
+            {/* AI RESPONSE */}
             {aiAnswers[q.id] && (
-              <div className="mt-3 rounded-lg bg-gray-100 p-3 text-sm">
+              <div className="rounded-md bg-gray-100 p-2 text-sm">
                 {aiAnswers[q.id]}
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Right Arrow */}
-        <button className="rounded-lg border px-3 py-2 hover:bg-gray-50">
-          ▼
-        </button>
-      </div>
-    </li>
-  ))}
-</ul>
+          </li>
+        ))}
+      </ul>
 
       {/* LOAD MORE */}
       {hasMore && (
