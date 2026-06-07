@@ -177,41 +177,72 @@ export default function QuestionsList({
       />
 
       {/* LIST */}
-      <ul className="space-y-3">
-        {filteredQuestions.map((q) => (
-          <li
-            key={q.id}
-            className="flex flex-col gap-2 rounded-lg border p-3"
-          >
-            {/* TOP ROW */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => upvote(q.id)}
-                className="rounded-md border px-3 py-1 font-mono"
-              >
-                ▲ {q.votes}
-              </button>
-
-              <span>{q.body}</span>
-            </div>
-
-            {/* AI BUTTON */}
+<ul className="space-y-4">
+  {filteredQuestions.map((q) => (
+    <li
+      key={q.id}
+      className="rounded-xl border bg-white p-4 shadow-sm transition hover:shadow-md"
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex gap-4">
+          {/* Vote Box */}
+          <div className="flex flex-col items-center rounded-lg border">
             <button
-              onClick={() => getAIAnswer(q.id, q.body)}
-              className="w-fit rounded-md border px-3 py-1 text-sm"
+              onClick={() => upvote(q.id)}
+              className="px-4 py-2 text-lg hover:bg-gray-100"
             >
-              {aiLoading[q.id] ? "Thinking..." : "🤖 AI Answer"}
+              ▲
             </button>
 
-            {/* AI RESPONSE */}
+            <span className="px-4 py-1 font-semibold">
+              {q.votes}
+            </span>
+
+            <button
+              className="px-4 py-2 text-lg text-gray-400"
+              disabled
+            >
+              ▼
+            </button>
+          </div>
+
+          {/* Question Content */}
+          <div className="flex-1">
+            <h3 className="text-lg font-medium">
+              {q.body}
+            </h3>
+
+            {q.author && (
+              <p className="mt-1 text-sm text-gray-500">
+                by {q.author}
+              </p>
+            )}
+
+            <button
+              onClick={() => getAIAnswer(q.id, q.body)}
+              className="mt-4 rounded-md border px-4 py-2 text-sm hover:bg-gray-50"
+            >
+              {aiLoading[q.id]
+                ? "Thinking..."
+                : "🤖 AI Answer"}
+            </button>
+
             {aiAnswers[q.id] && (
-              <div className="rounded-md bg-gray-100 p-2 text-sm">
+              <div className="mt-3 rounded-lg bg-gray-100 p-3 text-sm">
                 {aiAnswers[q.id]}
               </div>
             )}
-          </li>
-        ))}
-      </ul>
+          </div>
+        </div>
+
+        {/* Right Arrow */}
+        <button className="rounded-lg border px-3 py-2 hover:bg-gray-50">
+          ▼
+        </button>
+      </div>
+    </li>
+  ))}
+</ul>
 
       {/* LOAD MORE */}
       {hasMore && (
