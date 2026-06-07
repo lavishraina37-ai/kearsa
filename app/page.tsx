@@ -12,13 +12,13 @@ export default async function Page() {
   );
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-8">
+    <main className="mx-auto max-w-2xl bg-blue-50 p-6">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight">
+        <h1 className="flex flex-col gap-2 rounded-lg border bg-orange-50 p-3">
           Live Q&amp;A
         </h1>
 
-        <p className="mt-2 text-gray-600">
+        <p className="mt-2 text-red-600">
           Ask questions, vote on answers, and get AI-powered
           responses.
         </p>
