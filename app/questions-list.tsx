@@ -86,7 +86,38 @@ export default function QuestionsList({
         q.id === id ? { ...q, votes: q.votes + 1 } : q
       )
     );
+async function downvote(id: string) {
+  setQuestions((qs) =>
+    qs.map((q) =>
+      q.id === id
+        ? { ...q, votes: q.votes - 1 }
+        : q
+    )
+  );
 
+  const res = await fetch(
+    `/api/questions/${id}/downvote`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        voterId: getVoterId(),
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    setQuestions((qs) =>
+      qs.map((q) =>
+        q.id === id
+          ? { ...q, votes: q.votes + 1 }
+          : q
+      )
+    );
+  }
+}
     const res = await fetch(`/api/questions/${id}/vote`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
