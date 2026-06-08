@@ -1,40 +1,25 @@
-// app/api/ai-answer/route.ts
-
-import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: Request) {
   try {
     const { question } = await req.json();
 
-    if (!question?.trim()) {
-      return Response.json(
-        { error: "Question is required" },
-        { status: 400 }
-      );
+    if (!question) {
+      return Response.json({ error: "No question provided" }, { status: 400 });
     }
 
-    const result = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: `Answer this question clearly and simply:
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-${question}`,
-    });
+    const result = await model.generateContent(question);
+    const response = await result.response;
+    const text = response.text();
 
-    return Response.json({
-      answer: result.text,
-    });
-  } catch (error) {
-    console.error("Gemini Error:", error);
-
+    return Response.json({ answer: text });
+  } catch (err: any) {
+    console.error("AI ERROR:", err); // IMPORTANT
     return Response.json(
-      {
-        answer:
-          "Sorry, I couldn't generate an answer right now.",
-      },
+      { error: "AI failed", details: err.message },
       { status: 500 }
     );
   }
