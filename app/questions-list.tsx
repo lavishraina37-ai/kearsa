@@ -156,27 +156,37 @@ export default function QuestionsList({
   // AI ANSWER
   // =========================
   async function getAIAnswer(questionId: string, questionText: string) {
-    setAiLoading((prev) => ({ ...prev, [questionId]: true }));
+  setAiLoading((prev) => ({ ...prev, [questionId]: true }));
 
-    try {
-      const res = await fetch("/api/ai-answer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: questionText }),
-      });
+  try {
+    const res = await fetch("/api/ai-answer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: questionText }),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      setAiAnswers((prev) => ({
-        ...prev,
-        [questionId]: data.answer,
-      }));
-    } catch (err) {
-      console.error(err);
+    // ✅ CHECK RESPONSE SAFELY
+    if (!res.ok) {
+      throw new Error(data?.error || "AI request failed");
     }
 
-    setAiLoading((prev) => ({ ...prev, [questionId]: false }));
+    setAiAnswers((prev) => ({
+      ...prev,
+      [questionId]: data.answer,
+    }));
+  } catch (err: any) {
+    console.error("AI Error:", err);
+
+    setAiAnswers((prev) => ({
+      ...prev,
+      [questionId]: "❌ AI failed to respond. Try again.",
+    }));
   }
+
+  setAiLoading((prev) => ({ ...prev, [questionId]: false }));
+}
 
   return (
     <div className="space-y-4">
