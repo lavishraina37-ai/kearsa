@@ -1,19 +1,19 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
-
 export async function POST(req: Request) {
   try {
     const { message } = await req.json();
 
-    if (!message) {
+    if (!process.env.GEMINI_API_KEY) {
       return Response.json(
-        { error: "Message required" },
-        { status: 400 }
+        { reply: "Missing API key" },
+        { status: 500 }
       );
     }
+
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+    });
 
     const result = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -23,9 +23,11 @@ export async function POST(req: Request) {
     return Response.json({
       reply: result.text,
     });
-  } catch (error) {
+  } catch (err: any) {
+    console.error("CHAT API ERROR:", err);
+
     return Response.json(
-      { error: "Something went wrong" },
+      { reply: "Server error in AI" },
       { status: 500 }
     );
   }
