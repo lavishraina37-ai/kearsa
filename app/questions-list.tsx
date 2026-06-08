@@ -24,7 +24,7 @@ export default function QuestionsList({
   const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  // AI STATE
+  // 🤖 AI STATE (CLEAN)
   const [aiAnswer, setAiAnswer] = useState<Record<string, string>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
 
@@ -52,7 +52,9 @@ export default function QuestionsList({
     isQuestionMatch(q.body, query)
   );
 
-  // ASK QUESTION
+  // ======================
+  // SUBMIT QUESTION
+  // ======================
   async function submit() {
     if (!draft.trim()) return;
 
@@ -67,10 +69,14 @@ export default function QuestionsList({
     setDraft("");
   }
 
-  // VOTE UP
+  // ======================
+  // VOTES
+  // ======================
   async function upvote(id: string) {
     setQuestions((qs) =>
-      qs.map((q) => (q.id === id ? { ...q, votes: q.votes + 1 } : q))
+      qs.map((q) =>
+        q.id === id ? { ...q, votes: q.votes + 1 } : q
+      )
     );
 
     await fetch(`/api/questions/${id}/vote`, {
@@ -80,10 +86,11 @@ export default function QuestionsList({
     });
   }
 
-  // VOTE DOWN
   async function downvote(id: string) {
     setQuestions((qs) =>
-      qs.map((q) => (q.id === id ? { ...q, votes: q.votes - 1 } : q))
+      qs.map((q) =>
+        q.id === id ? { ...q, votes: q.votes - 1 } : q
+      )
     );
 
     await fetch(`/api/questions/${id}/downvote`, {
@@ -93,35 +100,51 @@ export default function QuestionsList({
     });
   }
 
+  // ======================
   // LOAD MORE
+  // ======================
   async function loadMore() {
     setLoading(true);
 
-    const res = await fetch(`/api/questions?offset=${questions.length}`);
-    const data = await res.json();
+    try {
+      const res = await fetch(
+        `/api/questions?offset=${questions.length}`
+      );
+      const data = await res.json();
 
-    setQuestions((prev) => [...prev, ...data.questions]);
-    setHasMore(data.hasMore);
-
-    setLoading(false);
+      setQuestions((prev) => [...prev, ...data.questions]);
+      setHasMore(data.hasMore);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  // 🤖 AI FUNCTION (FIXED)
+  // ======================
+  // 🤖 AI PER QUESTION (FINAL FIXED)
+  // ======================
   async function getAIAnswer(questionId: string, questionText: string) {
     setAiLoading((prev) => ({ ...prev, [questionId]: true }));
 
+    // show instant feedback
+    setAiAnswer((prev) => ({
+      ...prev,
+      [questionId]: "Thinking...",
+    }));
+
     try {
-      const res = await fetch("/api/ai", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: questionText }),
+        body: JSON.stringify({ message: questionText }),
       });
 
       const data = await res.json();
 
+      const answer = data.reply || "No response from AI";
+
       setAiAnswer((prev) => ({
         ...prev,
-        [questionId]: data.answer || "No response from AI",
+        [questionId]: answer,
       }));
     } catch (err) {
       setAiAnswer((prev) => ({
@@ -129,7 +152,10 @@ export default function QuestionsList({
         [questionId]: "❌ AI failed",
       }));
     } finally {
-      setAiLoading((prev) => ({ ...prev, [questionId]: false }));
+      setAiLoading((prev) => ({
+        ...prev,
+        [questionId]: false,
+      }));
     }
   }
 
@@ -159,31 +185,36 @@ export default function QuestionsList({
       />
 
       {/* QUESTIONS */}
-      <ul className="space-y-3">
+      <ul className="space-y-4">
         {filteredQuestions.map((q) => (
           <li key={q.id} className="border p-3 rounded">
 
             <div className="flex gap-3">
-              <div>
+              {/* VOTES */}
+              <div className="text-center">
                 <button onClick={() => upvote(q.id)}>▲</button>
                 <div>{q.votes}</div>
                 <button onClick={() => downvote(q.id)}>▼</button>
               </div>
 
-              <div>{q.body}</div>
+              {/* QUESTION */}
+              <div className="flex-1">{q.body}</div>
             </div>
 
             {/* AI BUTTON */}
             <button
               onClick={() => getAIAnswer(q.id, q.body)}
-              className="mt-2 border px-2 py-1 text-sm"
+              className="mt-3 border px-2 py-1 text-sm rounded"
             >
-              {aiLoading[q.id] ? "Thinking..." : "🤖 AI Answer"}
+              {aiLoading[q.id] ? "Thinking..." : "🤖 Ask AI"}
             </button>
 
-            {/* AI RESPONSE */}
+            {/* AI BUBBLE */}
             {aiAnswer[q.id] && (
-              <div className="mt-2 bg-gray-100 p-2 text-sm">
+              <div className="mt-3 bg-gray-100 border rounded-lg p-3 text-sm whitespace-pre-wrap">
+                <div className="text-xs text-gray-500 mb-1">
+                  🤖 AI Assistant
+                </div>
                 {aiAnswer[q.id]}
               </div>
             )}
@@ -191,6 +222,7 @@ export default function QuestionsList({
         ))}
       </ul>
 
+      {/* LOAD MORE */}
       {hasMore && (
         <button onClick={loadMore} disabled={loading}>
           {loading ? "Loading..." : "Load more"}
